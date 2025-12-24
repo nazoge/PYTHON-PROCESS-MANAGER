@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Server Manager</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <style>
+        body { padding: 20px; font-family: sans-serif; max-width: 1400px; margin: 0 auto; }
+        .status-running { color: #43a047; font-weight: bold; }
+        .status-stopped { color: #e53935; font-weight: bold; }
+        
+        .log-box { 
+            background: #111; 
+            color: #0f0; 
+            padding: 10px; 
+            border: 1px solid #333;
+            border-radius: 4px; 
+            height: 400px; 
+            overflow-y: scroll; 
+            font-family: monospace; 
+            font-size: 0.8rem; 
+            white-space: pre-wrap;
+        }
+        
+        header { border-bottom: 1px solid #333; margin-bottom: 2rem; padding-bottom: 1rem; }
+        .grid-custom { display: grid; grid-template-columns: 3fr 1fr; gap: 30px; }
+        @media (max-width: 992px) { .grid-custom { grid-template-columns: 1fr; } }
+        
+        /* テーブル調整 */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid #333; text-align: left; }
+        th { font-size: 0.9rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* ボタン調整 */
+        .btn-group form { display: inline-block; margin: 0; }
+        .btn-sm { width: auto; padding: 4px 12px; font-size: 0.75rem; margin-right: 5px; margin-bottom: 0; }
+        .btn-delete { background-color: transparent; color: #e53935; border: 1px solid #e53935; }
+        .btn-delete:hover { background-color: #e53935; color: white; }
+    </style>
+</head>
+<body>
+    <main class="container-fluid">
+        <header>
+            <nav>
+                <ul>
+                    <li><strong>PYTHON PROCESS MANAGER</strong></li>
+                </ul>
+                <ul>
+                    <li>Storage: {{ disk_percent }}%</li>
+                    <li>CPU: {{ cpu_percent }}%</li>
+                </ul>
+            </nav>
+            <progress value="{{ disk_percent }}" max="100"></progress>
+        </header>
+
+        <div class="grid-custom">
+            <section>
+                <h3>Managed Scripts</h3>
+                {% if not scripts %}
+                    <p style="color:#666; text-align:center; padding: 20px;">No scripts found. Upload one to get started.</p>
+                {% else %}
+                <figure>
+                    <table role="grid">
+                        <thead>
+                            <tr>
+                                th>Script Name</th>
+                                <th>Status</th>
+                                <th>PID</th>
+                                <th>CPU</th>
+                                <th>Memory</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in scripts %}
+                            <tr>
+                                <td><strong>{{ item.name }}</strong></td>
+                                <td class="{{ 'status-running' if item.status == 'Running' else 'status-stopped' }}">
+                                    {{ item.status }}
+                                </td>
+                                <td>{{ item.pid }}</td>
+                                <td>{{ item.cpu }}%</td>
+                                <td>{{ "%.1f"|format(item.mem) }} MB</td>
+                                <td style="text-align: right;">
+                                    <div class="btn-group">
+                                        {% if item.status == 'Running' %}
+                                        <form action="/stop/{{ item.name }}" method="post">
+                                            <button type="submit" class="secondary outline btn-sm">Stop</button>
+                                        </form>
+                                        {% else %}
+                                        <form action="/start/{{ item.name }}" method="post">
+                                            <button type="submit" class="contrast btn-sm">Start</button>
+                                        </form>
+                                        {% endif %}
+
+                                        <a href="/logs/{{ item.name }}" role="button" class="outline btn-sm">Logs</a>
+                                        
+                                        <form action="/delete/{{ item.name }}" method="post" onsubmit="return confirm('Are you sure you want to delete {{ item.name }}? This cannot be undone.');">
+                                            <button type="submit" class="btn-sm btn-delete">Delete</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </figure>
+                {% endif %}
+            </section>
+
+            <aside>
+                <article>
+                    <header>Upload Script (.py)</header>
+                    <form action="/upload" method="post" enctype="multipart/form-data">
+                        <input type="file" name="file" accept=".py" required>
+                        <button type="submit" style="margin-top:10px; width:100%;">Upload</button>
+                    </form>
+                </article>
+
+                <article>
+                    <header>Library Installer</header>
+                    <form action="/install" method="post">
+                        <label for="package">Package Name (pip)</label>
+                        <div class="grid">
+                            <input type="text" id="package" name="package" placeholder="e.g. requests" required>
+                            <button type="submit" class="contrast">Install</button>
+                        </div>
+                        <small style="color: #999;">*Installs with --no-cache-dir</small>
+                    </form>
+                    <div style="text-align: right; margin-top: 5px;">
+                        <a href="/logs/pip_install" style="font-size: 0.8rem;">View Install Logs</a>
+                    </div>
+                </article>
+
+                {% if current_log_name %}
+                <article>
+                    <header>
+                        Logs: {{ current_log_name }}
+                        <a href="/" style="float:right; text-decoration:none; color:#e53935;">&times; Close</a>
+                    </header>
+                    <div class="log-box">{{ log_content }}</div>
+                </article>
+                {% endif %}
+            </aside>
+        </div>
+    </main>
+</body>
+</html>
