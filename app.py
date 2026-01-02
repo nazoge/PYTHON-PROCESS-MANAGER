@@ -10,7 +10,11 @@ from flask import Flask, render_template, request, redirect
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if '__file__' in globals():
+   BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+else:
+   BASE_DIR = os.getcwd()
+
 SCRIPTS_DIR = os.path.join(BASE_DIR, "scripts")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 BACKUP_DIR = os.path.join(BASE_DIR, "backups")
