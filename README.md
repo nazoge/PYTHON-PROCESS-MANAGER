@@ -38,7 +38,7 @@ python app.py
 ```
 
 サーバーは `http://0.0.0.0:8000` で起動します
-ポートの変更をしたい場合は、app.pyの631行目を変更してください
+ポートの変更をしたい場合は、app.pyの631行目を変更してください。
 
 ### ディレクトリ構成
 
@@ -71,41 +71,6 @@ python-process-manager/
 3. **Consoleタブ**: シェルコマンドの実行
    - コマンドの直接実行
    - 出力の表示
-
-## Dockerデプロイ
-
-### Dockerfile
-
-```dockerfile
-FROM python:3.12-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-RUN mkdir -p scripts logs backups
-
-EXPOSE 2092
-
-CMD ["python", "app.py"]
-```
-
-### ビルドと実行
-
-```bash
-docker build -t python-process-manager .
-docker run -d -p 2092:2092 --name ppm python-process-manager
-```
-
-### Pterodactyl Egg設定
-
-Pterodactylで使用する場合:
-- **起動コマンド**: `python app.py`
-- **デフォルトポート**: 2092
-- **Dockerイメージ**: python:3.12-slim
 
 ## リソース制限（Linux専用）
 
