@@ -77,7 +77,7 @@ python-process-manager/
 APIを使用して各スクリプトにメモリ・CPU制限を設定:
 
 ```bash
-curl -X POST http://localhost:2092/api/config/script.py \
+curl -X POST http://localhost:8000/api/config/script.py \
   -H "Content-Type: application/json" \
   -d '{"memory_limit_mb": 256, "cpu_time_limit": 300}'
 ```
