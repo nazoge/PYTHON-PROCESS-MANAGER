@@ -1,149 +1,945 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Server Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Process Manager</title>
     <style>
-        body { padding: 20px; font-family: sans-serif; max-width: 1400px; margin: 0 auto; }
-        .status-running { color: #43a047; font-weight: bold; }
-        .status-stopped { color: #e53935; font-weight: bold; }
-        
-        .log-box { 
-            background: #111; 
-            color: #0f0; 
-            padding: 10px; 
-            border: 1px solid #333;
-            border-radius: 4px; 
-            height: 400px; 
-            overflow-y: scroll; 
-            font-family: monospace; 
-            font-size: 0.8rem; 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-green: #238636;
+            --accent-green-hover: #2ea043;
+            --accent-red: #da3633;
+            --accent-red-hover: #f85149;
+            --accent-blue: #1f6feb;
+            --accent-blue-hover: #388bfd;
+            --accent-yellow: #d29922;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .system-stats {
+            display: flex;
+            gap: 24px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-bar {
+            width: 100px;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            background: var(--accent-blue);
+            transition: width 0.3s ease;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .card-body {
+            padding: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--bg-tertiary);
+        }
+
+        td {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-running {
+            background: rgba(35, 134, 54, 0.2);
+            color: #3fb950;
+        }
+
+        .status-stopped {
+            background: rgba(218, 54, 51, 0.2);
+            color: #f85149;
+        }
+
+        .status-zombie {
+            background: rgba(210, 153, 34, 0.2);
+            color: #d29922;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--accent-green);
+            color: white;
+            border-color: var(--accent-green);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-green-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        .btn-danger:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .btn-group form {
+            margin: 0;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        input[type="file"] {
+            padding: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .form-row input {
+            flex: 1;
+        }
+
+        .log-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            color: #7ee787;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .console-container {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+        }
+
+        .console-output {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px 6px 0 0;
+            padding: 12px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            color: var(--text-primary);
             white-space: pre-wrap;
         }
-        
-        header { border-bottom: 1px solid #333; margin-bottom: 2rem; padding-bottom: 1rem; }
-        .grid-custom { display: grid; grid-template-columns: 3fr 1fr; gap: 30px; }
-        @media (max-width: 992px) { .grid-custom { grid-template-columns: 1fr; } }
-        
-        /* テーブル調整 */
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px 15px; border-bottom: 1px solid #333; text-align: left; }
-        th { font-size: 0.9rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        
-        /* ボタン調整 */
-        .btn-group form { display: inline-block; margin: 0; }
-        .btn-sm { width: auto; padding: 4px 12px; font-size: 0.75rem; margin-right: 5px; margin-bottom: 0; }
-        .btn-delete { background-color: transparent; color: #e53935; border: 1px solid #e53935; }
-        .btn-delete:hover { background-color: #e53935; color: white; }
+
+        .console-input-container {
+            display: flex;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+        }
+
+        .console-prompt {
+            padding: 12px;
+            color: var(--accent-blue);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+        }
+
+        .console-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            padding: 12px 12px 12px 0;
+        }
+
+        .console-input:focus {
+            outline: none;
+        }
+
+        .file-browser {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .file-icon {
+            width: 20px;
+            margin-right: 12px;
+            color: var(--text-secondary);
+        }
+
+        .file-name {
+            flex: 1;
+            font-size: 0.875rem;
+        }
+
+        .file-size {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 16px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        .breadcrumb a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb-sep {
+            color: var(--text-muted);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-secondary);
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .sidebar-card {
+            margin-bottom: 16px;
+        }
+
+        .resource-config {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .resource-input {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .resource-input label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .resource-input input {
+            padding: 8px;
+        }
+
+        .text-muted {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-path {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .editor-textarea {
+            width: 100%;
+            height: 400px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            color: var(--text-primary);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            resize: vertical;
+        }
+
+        .editor-textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
+
 <body>
-    <main class="container-fluid">
+    <div class="container">
         <header>
-            <nav>
-                <ul>
-                    <li><strong>PYTHON PROCESS MANAGER</strong></li>
-                </ul>
-                <ul>
-                    <li>Storage: {{ disk_percent }}%</li>
-                    <li>CPU: {{ cpu_percent }}%</li>
-                </ul>
-            </nav>
-            <progress value="{{ disk_percent }}" max="100"></progress>
+            <div class="logo">Python Process Manager</div>
+            <div class="system-stats">
+                <div class="stat-item">
+                    <span>Storage: {{ disk_percent }}%</span>
+                    <div class="stat-bar">
+                        <div class="stat-bar-fill" style="width: {{ disk_percent }}%"></div>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <span>CPU: {{ cpu_percent }}%</span>
+                    <div class="stat-bar">
+                        <div class="stat-bar-fill" style="width: {{ cpu_percent }}%"></div>
+                    </div>
+                </div>
+            </div>
         </header>
 
-        <div class="grid-custom">
-            <section>
-                <h3>Managed Scripts</h3>
-                {% if not scripts %}
-                    <p style="color:#666; text-align:center; padding: 20px;">No scripts found. Upload one to get started.</p>
-                {% else %}
-                <figure>
-                    <table role="grid">
-                        <thead>
-                            <tr>
-                                th>Script Name</th>
-                                <th>Status</th>
-                                <th>PID</th>
-                                <th>CPU</th>
-                                <th>Memory</th>
-                                <th style="text-align: right;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in scripts %}
-                            <tr>
-                                <td><strong>{{ item.name }}</strong></td>
-                                <td class="{{ 'status-running' if item.status == 'Running' else 'status-stopped' }}">
-                                    {{ item.status }}
-                                </td>
-                                <td>{{ item.pid }}</td>
-                                <td>{{ item.cpu }}%</td>
-                                <td>{{ "%.1f"|format(item.mem) }} MB</td>
-                                <td style="text-align: right;">
-                                    <div class="btn-group">
-                                        {% if item.status == 'Running' %}
-                                        <form action="/stop/{{ item.name }}" method="post">
-                                            <button type="submit" class="secondary outline btn-sm">Stop</button>
-                                        </form>
-                                        {% else %}
-                                        <form action="/start/{{ item.name }}" method="post">
-                                            <button type="submit" class="contrast btn-sm">Start</button>
-                                        </form>
-                                        {% endif %}
-
-                                        <a href="/logs/{{ item.name }}" role="button" class="outline btn-sm">Logs</a>
-                                        
-                                        <form action="/delete/{{ item.name }}" method="post" onsubmit="return confirm('Are you sure you want to delete {{ item.name }}? This cannot be undone.');">
-                                            <button type="submit" class="btn-sm btn-delete">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </figure>
-                {% endif %}
-            </section>
-
-            <aside>
-                <article>
-                    <header>Upload Script (.py)</header>
-                    <form action="/upload" method="post" enctype="multipart/form-data">
-                        <input type="file" name="file" accept=".py" required>
-                        <button type="submit" style="margin-top:10px; width:100%;">Upload</button>
-                    </form>
-                </article>
-
-                <article>
-                    <header>Library Installer</header>
-                    <form action="/install" method="post">
-                        <label for="package">Package Name (pip)</label>
-                        <div class="grid">
-                            <input type="text" id="package" name="package" placeholder="e.g. requests" required>
-                            <button type="submit" class="contrast">Install</button>
-                        </div>
-                        <small style="color: #999;">*Installs with --no-cache-dir</small>
-                    </form>
-                    <div style="text-align: right; margin-top: 5px;">
-                        <a href="/logs/pip_install" style="font-size: 0.8rem;">View Install Logs</a>
-                    </div>
-                </article>
-
-                {% if current_log_name %}
-                <article>
-                    <header>
-                        Logs: {{ current_log_name }}
-                        <a href="/" style="float:right; text-decoration:none; color:#e53935;">&times; Close</a>
-                    </header>
-                    <div class="log-box">{{ log_content }}</div>
-                </article>
-                {% endif %}
-            </aside>
+        <div class="tabs">
+            <button class="tab active" data-tab="scripts">Scripts</button>
+            <button class="tab" data-tab="files">File Manager</button>
+            <button class="tab" data-tab="console">Console</button>
         </div>
-    </main>
+
+        <div id="scripts" class="tab-content active">
+            <div class="grid-layout">
+                <section>
+                    <div class="card">
+                        <div class="card-header">Managed Scripts</div>
+                        {% if not scripts %}
+                        <div class="empty-state">
+                            <p>No scripts found. Upload one to get started.</p>
+                        </div>
+                        {% else %}
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Script Name</th>
+                                    <th>Status</th>
+                                    <th>PID</th>
+                                    <th>CPU</th>
+                                    <th>Memory</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in scripts %}
+                                <tr>
+                                    <td><strong>{{ item.name }}</strong></td>
+                                    <td>
+                                        <span class="status-badge status-{{ item.status|lower }}">{{ item.status
+                                            }}</span>
+                                    </td>
+                                    <td>{{ item.pid }}</td>
+                                    <td>{{ item.cpu }}%</td>
+                                    <td>{{ "%.1f"|format(item.mem) }} MB</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            {% if item.status == 'Running' %}
+                                            <form action="/stop/{{ item.name }}" method="post">
+                                                <button type="submit" class="btn btn-secondary">Stop</button>
+                                            </form>
+                                            <form action="/restart/{{ item.name }}" method="post">
+                                                <button type="submit" class="btn btn-secondary">Restart</button>
+                                            </form>
+                                            {% else %}
+                                            <form action="/start/{{ item.name }}" method="post">
+                                                <button type="submit" class="btn btn-primary">Start</button>
+                                            </form>
+                                            {% endif %}
+                                            <a href="/logs/{{ item.name }}" class="btn btn-secondary">Logs</a>
+                                            <form action="/delete/{{ item.name }}" method="post"
+                                                onsubmit="return confirm('Delete {{ item.name }}?');">
+                                                <button type="submit" class="btn btn-danger">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% endif %}
+                    </div>
+
+                    {% if current_log_name %}
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-header">
+                            Logs: {{ current_log_name }}
+                            <a href="/" style="float: right; color: var(--accent-red); text-decoration: none;">Close</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="log-box">{{ log_content }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </section>
+
+                <aside>
+                    <div class="card sidebar-card">
+                        <div class="card-header">Upload Script</div>
+                        <div class="card-body">
+                            <form action="/upload" method="post" enctype="multipart/form-data">
+                                <div class="form-group">
+                                    <input type="file" name="file" accept=".py" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="width: 100%;">Upload</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card sidebar-card">
+                        <div class="card-header">Install Package</div>
+                        <div class="card-body">
+                            <form action="/install" method="post">
+                                <div class="form-group">
+                                    <label for="package">Package Name (pip)</label>
+                                    <div class="form-row">
+                                        <input type="text" id="package" name="package" placeholder="e.g. requests"
+                                            required>
+                                        <button type="submit" class="btn btn-primary">Install</button>
+                                    </div>
+                                </div>
+                            </form>
+                            <div style="text-align: right;">
+                                <a href="/logs/pip_install" class="text-muted">View Install Logs</a>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <div id="files" class="tab-content">
+            <div class="card">
+                <div class="breadcrumb">
+                    <a href="#" onclick="browseDir('')">Root</a>
+                    <span class="breadcrumb-sep">/</span>
+                    <span id="current-path">scripts</span>
+                </div>
+                <div id="file-list">
+                    <div class="file-item" onclick="browseDir('scripts')">
+                        <span class="file-icon">[DIR]</span>
+                        <span class="file-name">scripts</span>
+                    </div>
+                    <div class="file-item" onclick="browseDir('logs')">
+                        <span class="file-icon">[DIR]</span>
+                        <span class="file-name">logs</span>
+                    </div>
+
+                    <div class="file-item" onclick="browseDir('files')">
+                        <span class="file-icon">[DIR]</span>
+                        <span class="file-name">files</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="file-editor" class="card hidden" style="margin-top: 24px;">
+                <div class="card-header">
+                    <span>File Editor</span>
+                    <button class="btn btn-secondary" style="float: right;" onclick="closeEditor()">Close</button>
+                </div>
+                <div class="card-body editor-container">
+                    <div class="editor-header">
+                        <span class="editor-path" id="editor-path"></span>
+                        <button class="btn btn-primary" onclick="saveFile()">Save</button>
+                    </div>
+                    <textarea class="editor-textarea" id="editor-content"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div id="console" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <span>Console</span>
+                    <div style="float: right; display: flex; gap: 12px; align-items: center;">
+                        <select id="console-script-select" onchange="selectConsoleScript()"
+                            style="padding: 4px 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+                            <option value="">-- Select Script --</option>
+                            {% for item in scripts %}
+                            {% if item.status == 'Running' %}
+                            <option value="{{ item.name }}">{{ item.name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">
+                            <input type="checkbox" id="console-auto-refresh" checked onchange="toggleAutoRefresh()">
+                            Auto Refresh
+                        </label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="console-container">
+                        <div class="console-output" id="console-output">Select a running script to view its output.
+                        </div>
+                        <div class="console-input-container">
+                            <span class="console-prompt">$</span>
+                            <input type="text" class="console-input" id="console-input"
+                                placeholder="Enter command to send..." onkeypress="handleConsoleSend(event)">
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                        <button class="btn btn-primary" onclick="sendConsoleInput()">Send</button>
+                        <button class="btn btn-secondary" onclick="refreshConsole()">Refresh</button>
+                        <button class="btn btn-secondary" onclick="clearConsoleDisplay()">Clear Display</button>
+                        <span id="console-status"
+                            style="margin-left: auto; font-size: 0.75rem; color: var(--text-muted);"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        let currentDir = '';
+
+        function browseDir(path) {
+            currentDir = path;
+            document.getElementById('current-path').textContent = path || 'Root';
+
+            fetch('/api/files?path=' + encodeURIComponent(path))
+                .then(response => response.json())
+                .then(data => {
+                    const fileList = document.getElementById('file-list');
+                    fileList.innerHTML = '';
+
+                    if (path) {
+                        const parentPath = path.split('/').slice(0, -1).join('/');
+                        fileList.innerHTML += `
+                            <div class="file-item" onclick="browseDir('${parentPath}')">
+                                <span class="file-icon">[..]</span>
+                                <span class="file-name">..</span>
+                            </div>
+                        `;
+                    }
+
+                    data.items.forEach(item => {
+                        const fullPath = path ? path + '/' + item.name : item.name;
+                        if (item.is_dir) {
+                            fileList.innerHTML += `
+                                <div class="file-item" onclick="browseDir('${fullPath}')">
+                                    <span class="file-icon">[DIR]</span>
+                                    <span class="file-name">${item.name}</span>
+                                </div>
+                            `;
+                        } else {
+                            fileList.innerHTML += `
+                                <div class="file-item">
+                                    <span class="file-icon">[FILE]</span>
+                                    <span class="file-name">${item.name}</span>
+                                    <span class="file-size">${formatSize(item.size)}</span>
+                                    <div class="file-actions">
+                                        <button class="btn btn-secondary" onclick="editFile('${fullPath}')">Edit</button>
+                                        <a class="btn btn-secondary" href="/api/files/download?path=${encodeURIComponent(fullPath)}">Download</a>
+                                        <button class="btn btn-danger" onclick="deleteFile('${fullPath}')">Delete</button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+                })
+                .catch(err => console.error('Error browsing:', err));
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        function editFile(path) {
+            fetch('/api/files/read?path=' + encodeURIComponent(path))
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('file-editor').classList.remove('hidden');
+                    document.getElementById('editor-path').textContent = path;
+                    document.getElementById('editor-content').value = data.content;
+                })
+                .catch(err => console.error('Error reading file:', err));
+        }
+
+        function closeEditor() {
+            document.getElementById('file-editor').classList.add('hidden');
+        }
+
+        function saveFile() {
+            const path = document.getElementById('editor-path').textContent;
+            const content = document.getElementById('editor-content').value;
+
+            fetch('/api/files/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path, content: content })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('File saved successfully.');
+                    } else {
+                        alert('Error saving file: ' + data.error);
+                    }
+                })
+                .catch(err => console.error('Error saving file:', err));
+        }
+
+        function deleteFile(path) {
+            if (!confirm('Delete ' + path + '?')) return;
+
+            fetch('/api/files/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        browseDir(currentDir);
+                    } else {
+                        alert('Error deleting file: ' + data.error);
+                    }
+                })
+                .catch(err => console.error('Error deleting file:', err));
+        }
+
+        let consoleScript = '';
+        let consoleAutoRefresh = true;
+        let consoleRefreshInterval = null;
+
+        function selectConsoleScript() {
+            const select = document.getElementById('console-script-select');
+            consoleScript = select.value;
+            if (consoleScript) {
+                refreshConsole();
+                if (consoleAutoRefresh) {
+                    startAutoRefresh();
+                }
+            } else {
+                document.getElementById('console-output').textContent = 'Select a running script to view its output.';
+                stopAutoRefresh();
+            }
+        }
+
+        function refreshConsole() {
+            if (!consoleScript) return;
+
+            fetch('/api/scripts/' + encodeURIComponent(consoleScript) + '/logs?lines=200')
+                .then(response => response.json())
+                .then(data => {
+                    const output = document.getElementById('console-output');
+                    output.textContent = data.content || '(no output yet)';
+                    output.scrollTop = output.scrollHeight;
+                    document.getElementById('console-status').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+                })
+                .catch(err => {
+                    document.getElementById('console-output').textContent = 'Error loading logs: ' + err;
+                });
+        }
+
+        function clearConsoleDisplay() {
+            document.getElementById('console-output').textContent = '';
+        }
+
+        function toggleAutoRefresh() {
+            consoleAutoRefresh = document.getElementById('console-auto-refresh').checked;
+            if (consoleAutoRefresh && consoleScript) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            consoleRefreshInterval = setInterval(refreshConsole, 2000);
+        }
+
+        function stopAutoRefresh() {
+            if (consoleRefreshInterval) {
+                clearInterval(consoleRefreshInterval);
+                consoleRefreshInterval = null;
+            }
+        }
+
+        function sendConsoleInput() {
+            if (!consoleScript) {
+                alert('Please select a script first');
+                return;
+            }
+
+            const input = document.getElementById('console-input');
+            const command = input.value;
+
+            if (!command) return;
+
+            fetch('/api/scripts/' + encodeURIComponent(consoleScript) + '/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input: command })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        input.value = '';
+                        setTimeout(refreshConsole, 500);
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(err => alert('Error sending command: ' + err));
+        }
+
+        function handleConsoleSend(event) {
+            if (event.key === 'Enter') {
+                sendConsoleInput();
+            }
+        }
+
+        browseDir('');
+    </script>
 </body>
+
 </html>
