@@ -664,6 +664,50 @@ def api_system():
     })
 
 
+@app.route("/api/packages")
+def api_packages():
+    try:
+        result = subprocess.run(
+            ["pip", "list", "--format=json"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        packages = json.loads(result.stdout) if result.stdout else []
+        return jsonify({"packages": packages})
+    except Exception as e:
+        return jsonify({"packages": [], "error": str(e)})
+
+
+@app.route("/api/packages/uninstall", methods=["POST"])
+def api_uninstall_package():
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "error": "JSON required"}), 400
+    
+    package = data.get("package", "").strip()
+    if not package:
+        return jsonify({"success": False, "error": "Package name required"}), 400
+    
+    protected_packages = ["pip", "setuptools", "wheel", "flask", "psutil"]
+    if package.lower() in protected_packages:
+        return jsonify({"success": False, "error": f"Cannot uninstall protected package: {package}"}), 400
+    
+    uninstall_log = os.path.join(LOGS_DIR, "pip_install.log")
+    try:
+        with open(uninstall_log, "a") as log_file:
+            log_file.write(f"\n--- Uninstalling {package} ({time.strftime('%Y-%m-%d %H:%M:%S')}) ---\n")
+            result = subprocess.run(
+                ["pip", "uninstall", "-y", package],
+                stdout=log_file,
+                stderr=log_file,
+                timeout=60
+            )
+        return jsonify({"success": result.returncode == 0})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
 @app.route("/api/config/<script_name>", methods=["GET", "POST"])
 def api_config(script_name):
     if request.method == "GET":

@@ -532,6 +532,8 @@
 
         <div class="tabs">
             <button class="tab active" data-tab="scripts">Scripts</button>
+            <button class="tab" data-tab="packages">Packages</button>
+            <button class="tab" data-tab="resources">Resource Config</button>
             <button class="tab" data-tab="files">File Manager</button>
             <button class="tab" data-tab="console">Console</button>
         </div>
@@ -638,6 +640,106 @@
                             <div style="text-align: right;">
                                 <a href="/logs/pip_install" class="text-muted">View Install Logs</a>
                             </div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <div id="packages" class="tab-content">
+            <div class="grid-layout">
+                <section>
+                    <div class="card">
+                        <div class="card-header">
+                            <span>Installed Packages</span>
+                            <button class="btn btn-secondary" style="float: right;"
+                                onclick="loadPackages()">Refresh</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <input type="text" id="package-search" placeholder="Search packages..."
+                                    oninput="filterPackages()">
+                            </div>
+                            <div id="package-list" style="max-height: 500px; overflow-y: auto;">
+                                <div class="empty-state">Loading packages...</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <aside>
+                    <div class="card sidebar-card">
+                        <div class="card-header">Install Package</div>
+                        <div class="card-body">
+                            <form action="/install" method="post">
+                                <div class="form-group">
+                                    <label for="package-install">Package Name (pip)</label>
+                                    <div class="form-row">
+                                        <input type="text" id="package-install" name="package"
+                                            placeholder="e.g. requests" required>
+                                        <button type="submit" class="btn btn-primary">Install</button>
+                                    </div>
+                                </div>
+                            </form>
+                            <div style="text-align: right;">
+                                <a href="/logs/pip_install" class="text-muted">View Install Logs</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card sidebar-card">
+                        <div class="card-header">Package Info</div>
+                        <div class="card-body">
+                            <p style="font-size: 0.8rem; color: var(--text-secondary);">
+                                Protected packages that cannot be uninstalled:
+                            </p>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
+                                pip, setuptools, wheel, flask, psutil
+                            </p>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <div id="resources" class="tab-content">
+            <div class="grid-layout">
+                <section>
+                    <div class="card">
+                        <div class="card-header">
+                            <span>Resource Limits Configuration</span>
+                            <button class="btn btn-secondary" style="float: right;"
+                                onclick="loadResourceConfigs()">Refresh</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="resource-unavailable" class="hidden"
+                                style="padding: 24px; margin-bottom: 16px; background: rgba(210, 153, 34, 0.1); border: 1px solid var(--accent-yellow); border-radius: 6px;">
+                                <p style="color: var(--accent-yellow); font-size: 0.875rem; margin: 0;">
+                                    ⚠ リソース制限はLinux環境でのみ有効です。設定は保存できますが、現在のOS（<span id="current-os">-</span>）では適用されません。
+                                </p>
+                            </div>
+                            <div id="resource-list">
+                                <div class="empty-state">Loading scripts...</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <aside>
+                    <div class="card sidebar-card">
+                        <div class="card-header">How It Works</div>
+                        <div class="card-body">
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px;">
+                                各スクリプトにメモリとCPU時間の制限を設定できます：
+                            </p>
+                            <ul style="font-size: 0.75rem; color: var(--text-muted); padding-left: 16px;">
+                                <li style="margin-bottom: 8px;"><strong>Memory Limit (MB)</strong>: スクリプトが使用できる最大メモリ量。0
+                                    = 無制限</li>
+                                <li><strong>CPU Time Limit (sec)</strong>: スクリプトのCPU使用時間の上限。0 = 無制限</li>
+                            </ul>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;">
+                                ※ 制限を超えるとスクリプトは自動的に終了します。
+                            </p>
                         </div>
                     </div>
                 </aside>
@@ -936,6 +1038,192 @@
             if (event.key === 'Enter') {
                 sendConsoleInput();
             }
+        }
+
+        let allPackages = [];
+
+        function loadPackages() {
+            const packageList = document.getElementById('package-list');
+            packageList.innerHTML = '<div class="empty-state">Loading packages...</div>';
+
+            fetch('/api/packages')
+                .then(response => response.json())
+                .then(data => {
+                    allPackages = data.packages || [];
+                    renderPackages(allPackages);
+                })
+                .catch(err => {
+                    packageList.innerHTML = '<div class="empty-state">Error loading packages</div>';
+                    console.error('Error loading packages:', err);
+                });
+        }
+
+        function renderPackages(packages) {
+            const packageList = document.getElementById('package-list');
+            const protectedPkgs = ['pip', 'setuptools', 'wheel', 'flask', 'psutil'];
+
+            if (packages.length === 0) {
+                packageList.innerHTML = '<div class="empty-state">No packages found</div>';
+                return;
+            }
+
+            let html = '<table style="width: 100%;"><thead><tr><th>Package</th><th>Version</th><th style="text-align: right;">Action</th></tr></thead><tbody>';
+
+            packages.forEach(pkg => {
+                const isProtected = protectedPkgs.includes(pkg.name.toLowerCase());
+                html += `
+                    <tr>
+                        <td><strong>${pkg.name}</strong></td>
+                        <td>${pkg.version}</td>
+                        <td style="text-align: right;">
+                            ${isProtected
+                        ? '<span class="text-muted">Protected</span>'
+                        : `<button class="btn btn-danger" onclick="uninstallPackage('${pkg.name}')">Uninstall</button>`
+                    }
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            html += `<div style="margin-top: 16px; font-size: 0.75rem; color: var(--text-muted);">Total: ${packages.length} packages</div>`;
+            packageList.innerHTML = html;
+        }
+
+        function filterPackages() {
+            const search = document.getElementById('package-search').value.toLowerCase();
+            const filtered = allPackages.filter(pkg =>
+                pkg.name.toLowerCase().includes(search) ||
+                pkg.version.toLowerCase().includes(search)
+            );
+            renderPackages(filtered);
+        }
+
+        function uninstallPackage(packageName) {
+            if (!confirm(`Uninstall ${packageName}?`)) return;
+
+            fetch('/api/packages/uninstall', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ package: packageName })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadPackages();
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to uninstall'));
+                    }
+                })
+                .catch(err => {
+                    alert('Error uninstalling package: ' + err);
+                });
+        }
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                if (tab.dataset.tab === 'packages') {
+                    loadPackages();
+                } else if (tab.dataset.tab === 'resources') {
+                    loadResourceConfigs();
+                }
+            });
+        });
+
+        let isResourceLinux = false;
+
+        function loadResourceConfigs() {
+            const resourceList = document.getElementById('resource-list');
+            resourceList.innerHTML = '<div class="empty-state">Loading scripts...</div>';
+
+            fetch('/api/system')
+                .then(r => r.json())
+                .then(sys => {
+                    isResourceLinux = sys.resource_limits_available;
+                    if (!isResourceLinux) {
+                        document.getElementById('resource-unavailable').classList.remove('hidden');
+                        document.getElementById('current-os').textContent = sys.platform || 'Unknown';
+                    } else {
+                        document.getElementById('resource-unavailable').classList.add('hidden');
+                    }
+                });
+
+            fetch('/api/scripts')
+                .then(response => response.json())
+                .then(data => {
+                    const scripts = data.scripts || [];
+                    if (scripts.length === 0) {
+                        resourceList.innerHTML = '<div class="empty-state">No scripts found</div>';
+                        return;
+                    }
+
+                    let html = '';
+                    const promises = scripts.map(script =>
+                        fetch(`/api/config/${encodeURIComponent(script.name)}`)
+                            .then(r => r.json())
+                            .then(config => ({ script: script.name, config }))
+                    );
+
+                    Promise.all(promises).then(results => {
+                        html = '<table style="width: 100%;"><thead><tr><th>Script</th><th>Memory Limit (MB)</th><th>CPU Time Limit (sec)</th><th style="text-align: right;">Action</th></tr></thead><tbody>';
+
+                        results.forEach(({ script, config }) => {
+                            const memLimit = config.memory_limit_mb || 0;
+                            const cpuLimit = config.cpu_time_limit || 0;
+                            const safeName = script.replace(/'/g, "\\'");
+                            html += `
+                                <tr>
+                                    <td><strong>${script}</strong></td>
+                                    <td><input type="number" id="mem-${script}" value="${memLimit}" min="0" style="width: 100px; padding: 6px;"></td>
+                                    <td><input type="number" id="cpu-${script}" value="${cpuLimit}" min="0" style="width: 100px; padding: 6px;"></td>
+                                    <td style="text-align: right;">
+                                        <button class="btn btn-primary" onclick="saveResourceConfig('${safeName}')">Save</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        html += '</tbody></table>';
+                        resourceList.innerHTML = html;
+                    });
+                })
+                .catch(err => {
+                    resourceList.innerHTML = '<div class="empty-state">Error loading scripts</div>';
+                    console.error('Error loading resource configs:', err);
+                });
+        }
+
+        function saveResourceConfig(scriptName) {
+            const memInput = document.getElementById(`mem-${scriptName}`);
+            const cpuInput = document.getElementById(`cpu-${scriptName}`);
+
+            if (!memInput || !cpuInput) {
+                alert('Error: Could not find input fields');
+                return;
+            }
+
+            const memLimit = parseInt(memInput.value) || 0;
+            const cpuLimit = parseInt(cpuInput.value) || 0;
+
+            fetch(`/api/config/${encodeURIComponent(scriptName)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    memory_limit_mb: memLimit,
+                    cpu_time_limit: cpuLimit
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Resource config saved for ${scriptName}`);
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to save'));
+                    }
+                })
+                .catch(err => {
+                    alert('Error saving config: ' + err);
+                });
         }
 
         browseDir('');
