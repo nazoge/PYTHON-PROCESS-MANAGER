@@ -1,6 +1,6 @@
 # Python Process Manager API リファレンス
 
-ベースURL: `http://localhost:2092`
+ベースURL: `http://localhost:8000`
 
 ## スクリプト
 
