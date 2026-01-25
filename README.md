@@ -15,7 +15,7 @@ Dockerコンテナ・Pterodactyl環境向けのPythonスクリプト管理Webア
 ## インストール
 
 ```bash
-git clone https://github.com/yourusername/python-process-manager.git
+git clone https://github.com/nazoge/python-process-manager.git
 cd python-process-manager
 pip install -r requirements.txt
 ```
